@@ -1,90 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Live Mic Stream</title>
-    <style>
-        body {
-            background: #0d1117;
-            color: #c9d1d9;
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 30px;
-            margin: 0;
-        }
-
-        h1 {
-            font-size: 2rem;
-            margin-bottom: 20px;
-        }
-
-        #deviceList {
-            margin-top: 20px;
-            width: 100%;
-            max-width: 400px;
-        }
-
-        .device {
-            background: #161b22;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .device span {
-            font-size: 1rem;
-        }
-
-        .status {
-            font-size: 0.9rem;
-            color: #58a6ff;
-            margin-left: 10px;
-        }
-
-        button {
-            background: #238636;
-            color: white;
-            border: none;
-            padding: 8px 14px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        button:hover {
-            background: #2ea043;
-        }
-
-        audio {
-            margin-top: 30px;
-            width: 300px;
-            display: none;
-        }
-
-        #connectedStatus {
-            margin-top: 10px;
-            font-size: 1rem;
-            color: #58a6ff;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Live Mic Listener</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 50px;
+    }
+    audio {
+      margin-top: 20px;
+      width: 80%;
+    }
+  </style>
 </head>
 <body>
-    <h1>📡 Live Device Listener</h1>
+  <h1>SilentMic Live Listener</h1>
+  <button id="listenBtn">Start Listening</button>
+  <audio id="remoteAudio" autoplay controls></audio>
 
-    <div id="deviceList">
-        <p>Loading devices...</p>
-    </div>
-
-    <audio id="remoteAudio" autoplay controls></audio>
-    <div id="connectedStatus"></div>
-
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <script src="client.js"></script>
+  <script src="client.js"></script>
 </body>
 </html>
