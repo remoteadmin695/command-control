@@ -1,38 +1,95 @@
-const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const express = require("express");
+const http = require("http");
+const WebSocket = require("ws");
+const path = require("path");
 
 const app = express();
-const port = process.env.PORT || 3000;
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
 
-// ✅ Serve static files like control.html, stream.html from 'public' folder
-app.use(express.static(path.join(__dirname, 'public')));
+// ✅ Serve static frontend (public/index.html, client.js, etc.)
+app.use(express.static(path.join(__dirname, "public")));
 
-// ✅ Upload directory setup
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
-}
+// ✅ WebRTC signaling: Multi-device routing
+const devices = {}; // { deviceId: { broadcaster: ws, listener: ws } }
 
-// ✅ Multer for handling uploads (limit: 1GB)
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+wss.on("connection", (ws) => {
+  ws.on("message", (message) => {
+    let data;
+    try {
+      data = JSON.parse(message);
+    } catch (e) {
+      console.error("❌ Invalid JSON:", message);
+      return;
+    }
+
+    const { type, role, offer, answer, candidate, deviceId } = data;
+
+    if (!deviceId) {
+      console.warn("⚠️ No deviceId provided");
+      return;
+    }
+
+    // Init device record if not exists
+    if (!devices[deviceId]) {
+      devices[deviceId] = { broadcaster: null, listener: null };
+    }
+
+    if (type === "join") {
+      if (role === "broadcaster") {
+        devices[deviceId].broadcaster = ws;
+        ws.role = "broadcaster";
+        ws.deviceId = deviceId;
+        console.log(`📡 Broadcaster joined (${deviceId})`);
+      } else if (role === "listener") {
+        devices[deviceId].listener = ws;
+        ws.role = "listener";
+        ws.deviceId = deviceId;
+        console.log(`🎧 Listener joined (${deviceId})`);
+      }
+    }
+
+    if (type === "offer" && devices[deviceId].listener) {
+      devices[deviceId].listener.send(JSON.stringify({ type: "offer", offer }));
+    }
+
+    if (type === "answer" && devices[deviceId].broadcaster) {
+      devices[deviceId].broadcaster.send(JSON.stringify({ type: "answer", answer }));
+    }
+
+    if (type === "candidate") {
+      const target = ws.role === "broadcaster"
+        ? devices[deviceId].listener
+        : devices[deviceId].broadcaster;
+
+      if (target) {
+        target.send(JSON.stringify({ type: "candidate", candidate }));
+      }
+    }
+  });
+
+  ws.on("close", () => {
+    const { role, deviceId } = ws;
+    if (deviceId && devices[deviceId]) {
+      if (role === "broadcaster") {
+        devices[deviceId].broadcaster = null;
+        console.log(`❌ Broadcaster left (${deviceId})`);
+      } else if (role === "listener") {
+        devices[deviceId].listener = null;
+        console.log(`👂 Listener left (${deviceId})`);
+      }
+
+      // Cleanup
+      if (!devices[deviceId].broadcaster && !devices[deviceId].listener) {
+        delete devices[deviceId];
+      }
+    }
+  });
 });
-const upload = multer({ storage: storage, limits: { fileSize: 1024 * 1024 * 1024 } });
 
-// ✅ Upload endpoint
-app.post('/upload', upload.single('file'), (req, res) => {
-    console.log('✅ File uploaded:', req.file.filename);
-    res.status(200).send('File uploaded successfully.');
-});
-
-// (Optional) Serve uploaded files for download
-app.use('/uploads', express.static(uploadDir));
-
-// ✅ Start the server
-app.listen(port, () => {
-    console.log(`🚀 Server running on http://localhost:${port}`);
-    console.log(`🌐 Your live server is available at: https://command-control-server.onrender.com`);
+// ✅ Start the server (supports HTTP + WebSocket)
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`🚀 WebRTC Signaling Server running at: http://localhost:${PORT}`);
+  console.log(`🌐 Deployed URL: https://command-control-server.onrender.com`);
 });
