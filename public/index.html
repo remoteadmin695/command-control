@@ -1,0 +1,34 @@
+<!-- public/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Live Mic Stream</title>
+    <style>
+        body {
+            background: #0d1117;
+            color: #c9d1d9;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 {
+            font-size: 2rem;
+        }
+        audio {
+            margin-top: 20px;
+            width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎧 Listening Live...</h1>
+    <audio id="remoteAudio" autoplay controls></audio>
+
+    <script src="client.js"></script>
+</body>
+</html>
