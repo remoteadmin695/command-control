@@ -1,4 +1,3 @@
-<!-- public/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,22 +11,77 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            height: 100vh;
+            padding: 30px;
             margin: 0;
         }
+
         h1 {
             font-size: 2rem;
+            margin-bottom: 20px;
         }
-        audio {
+
+        #deviceList {
             margin-top: 20px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .device {
+            background: #161b22;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .device span {
+            font-size: 1rem;
+        }
+
+        .status {
+            font-size: 0.9rem;
+            color: #58a6ff;
+            margin-left: 10px;
+        }
+
+        button {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #2ea043;
+        }
+
+        audio {
+            margin-top: 30px;
             width: 300px;
+            display: none;
+        }
+
+        #connectedStatus {
+            margin-top: 10px;
+            font-size: 1rem;
+            color: #58a6ff;
         }
     </style>
 </head>
 <body>
-    <h1>🎧 Listening Live...</h1>
+    <h1>📡 Live Device Listener</h1>
+
+    <div id="deviceList">
+        <!-- Devices will appear here dynamically -->
+    </div>
+
     <audio id="remoteAudio" autoplay controls></audio>
+    <div id="connectedStatus"></div>
 
     <script src="client.js"></script>
 </body>
